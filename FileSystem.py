@@ -178,13 +178,6 @@ class FileManager:
         # are made. More sophisticated checks can be implemented if needed.
         pass
 
-    # Future Extensions:
-    # - save_to_json(filepath)
-    # - load_from_json(filepath)
-    # - add_file_versioning
-    # - sort files by size, date, etc.
-    # - advanced search by metadata
-
 
 if __name__ == "__main__":
     fm = FileManager()
