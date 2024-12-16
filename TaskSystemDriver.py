@@ -8,6 +8,7 @@ t4 = db.add_node("task 4")
 
 t1.add_connections(t2)
 t2.add_connections(t3)
+# Circular connection (1-2-3-1)
 t3.add_connections(t1)
 
 print(db.detect_cycle())
