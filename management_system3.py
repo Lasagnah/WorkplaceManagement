@@ -2,31 +2,6 @@ import tkinter as tk  # Import tkinter for creating the GUI
 from tkinter import ttk, messagebox  # Import additional Tkinter modules for styling and displaying message boxes
 import datetime  # Import datetime module for handling date inputs
 
-# Task Class
-class Task:
-    def __init__(self, task_id, description, deadline, priority):
-        self.task_id = task_id  # Unique identifier for the task
-        self.description = description  # Description of the task
-        self.deadline = deadline  # Deadline for the task (date)
-        self.priority = priority  # Priority of the task (e.g., Low, Medium, High)
-        self.status = "Pending"  # Default status of a task is "Pending"
-
-# TaskGraph Class to represent the task dependencies as a graph
-class TaskGraph:
-    def __init__(self):
-        self.tasks = {}  # Dictionary to store tasks by task_id
-        self.edges = []  # List to store edges representing task dependencies
-
-    def add_task(self, task):
-        if task.task_id in self.tasks:  # Check if the task ID already exists
-            raise ValueError("Task ID already exists.")  # Raise an error if task ID is duplicate
-        self.tasks[task.task_id] = task  # Add the task to the dictionary
-
-    def add_edge(self, from_task, to_task):
-        if from_task not in self.tasks or to_task not in self.tasks:
-            raise ValueError("Both tasks must exist to create an edge.")  # Ensure both tasks exist before adding an edge
-        self.edges.append((from_task, to_task))  # Add the edge (dependency) to the list
-
 # BudgetTree Class to represent the budget as a hierarchical tree structure
 class BudgetTree:
     def __init__(self):
@@ -106,12 +81,6 @@ class ManagementApp:
         self.notebook.add(self.file_tab, text="File Management")  # Add the frame as a tab in the notebook
         self.file_manager = FileManager()  # Create a FileManager object
         self.setup_file_tab()  # Setup the UI for the file tab
-
-        # Task Management Tab
-        self.task_tab = ttk.Frame(self.notebook)  # Create a frame for the task tab
-        self.notebook.add(self.task_tab, text="Task Management")  # Add the frame as a tab in the notebook
-        self.task_graph = TaskGraph()  # Create a TaskGraph object
-        self.setup_task_tab()  # Setup the UI for the task tab
 
     # Method to setup the Budget Management Tab UI
     def setup_budget_tab(self):
@@ -193,10 +162,7 @@ class ManagementApp:
         total = self.budget_tree.calculate_total(self.budget_tree.root) if self.budget_tree.root else 0
         self.budget_total_label.config(text=f"Total Expense: $ {total}")
 
-# The rest of the code continues similarly...
     # Method to setup the File Management Tab UI
-
-    # Label and entry field for the parent directory
     def setup_file_tab(self):
         ttk.Label(self.file_tab, text="File Management", font=("Arial", 16)).pack(pady=10)
 
@@ -232,112 +198,15 @@ class ManagementApp:
         self.tree_view.delete(*self.tree_view.get_children())
 
         def populate_tree(parent_node, parent_id):
+            node_id = self.tree_view.insert(parent_id, "end", text=parent_node.name)
             for child in parent_node.children:
-                child_id = self.tree_view.insert(parent_id, "end", text=child.name)
-                populate_tree(child, child_id)
+                populate_tree(child, node_id)
 
-        for root_name, root_node in self.file_manager.files.items():
-            if not any(root_name in child.name for node in self.file_manager.files.values() for child in node.children):
-                root_id = self.tree_view.insert("", "end", text=root_name)
-                populate_tree(root_node, root_id)
+        for node in self.file_manager.files.values():
+            populate_tree(node, "")
 
-    def setup_task_tab(self):
-        ttk.Label(self.task_tab, text="Task Management", font=("Arial", 16)).pack(pady=10)
-
-        frame = ttk.Frame(self.task_tab)
-        frame.pack(pady=5)
-
-        ttk.Label(frame, text="Task ID:").grid(row=0, column=0, padx=5, pady=5)
-        self.task_id_entry = ttk.Entry(frame)
-        self.task_id_entry.grid(row=0, column=1, padx=5, pady=5)
-
-        ttk.Label(frame, text="Description:").grid(row=1, column=0, padx=5, pady=5)
-        self.task_description_entry = ttk.Entry(frame)
-        self.task_description_entry.grid(row=1, column=1, padx=5, pady=5)
-
-        ttk.Label(frame, text="Deadline (YYYY-MM-DD):").grid(row=2, column=0, padx=5, pady=5)
-        self.task_deadline_entry = ttk.Entry(frame)
-        self.task_deadline_entry.grid(row=2, column=1, padx=5, pady=5)
-
-        ttk.Label(frame, text="Priority:").grid(row=3, column=0, padx=5, pady=5)
-        self.task_priority_combobox = ttk.Combobox(frame, state="readonly", values=["Low", "Medium", "High"])
-        self.task_priority_combobox.grid(row=3, column=1, padx=5, pady=5)
-
-        ttk.Button(frame, text="Add Task", command=self.add_task).grid(row=4, columnspan=3, pady=5)
-
-        ttk.Label(frame, text="From Task ID:").grid(row=5, column=0, padx=5, pady=5)
-        self.from_task_entry = ttk.Entry(frame)
-        self.from_task_entry.grid(row=5, column=1, padx=5, pady=5)
-
-        ttk.Label(frame, text="To Task ID:").grid(row=6, column=0, padx=5, pady=5)
-        self.to_task_entry = ttk.Entry(frame)
-        self.to_task_entry.grid(row=6, column=1, padx=5, pady=5)
-
-        ttk.Button(frame, text="Add Edge", command=self.add_edge).grid(row=7, columnspan=3, pady=5)
-
-        # Display area for the task graph
-        self.task_graph_view = ttk.Treeview(self.task_tab)
-        self.task_graph_view.pack(pady=10, fill="both", expand=True)
-
-    # Method to add a task entry
-    def add_task(self):
-        task_id = self.task_id_entry.get().strip()
-        description = self.task_description_entry.get().strip()
-        deadline_str = self.task_deadline_entry.get().strip()
-        priority = self.task_priority_combobox.get().strip()
-
-        if not task_id or not description or not deadline_str or not priority:
-            messagebox.showerror("Error", "All task fields must be filled.")
-            return
-
-        try:
-            deadline = datetime.datetime.strptime(deadline_str, "%Y-%m-%d").date()
-        except ValueError:
-            messagebox.showerror("Error", "Deadline must be in YYYY-MM-DD format.")
-            return
-
-        try:
-            task = Task(task_id, description, deadline, priority)
-            self.task_graph.add_task(task)
-            self.refresh_task_graph()
-        except ValueError as e:
-            messagebox.showerror("Error", str(e))
-
-    def add_edge(self):
-        from_task = self.from_task_entry.get().strip()
-        to_task = self.to_task_entry.get().strip()
-
-        if not from_task or not to_task:
-            messagebox.showerror("Error", "Both 'From Task ID' and 'To Task ID' must be specified.")
-            return
-
-        try:
-            self.task_graph.add_edge(from_task, to_task)
-            self.refresh_task_graph()
-        except ValueError as e:
-            messagebox.showerror("Error", str(e))
-
-    def refresh_task_graph(self):
-        # Clear the current tree
-        self.task_graph_view.delete(*self.task_graph_view.get_children())
-
-        def add_task_to_view(task_id, parent_id=""):
-            task = self.task_graph.tasks[task_id]
-            node_id = self.task_graph_view.insert(parent_id, "end", text=f"{task.task_id}: {task.description} (Priority: {task.priority}, Deadline: {task.deadline})")
-            return node_id
-
-        # Add tasks and edges
-        task_ids = {}
-        for task_id in self.task_graph.tasks:
-            task_ids[task_id] = add_task_to_view(task_id)
-
-        for from_task, to_task in self.task_graph.edges:
-            if from_task in task_ids and to_task in task_ids:
-                self.task_graph_view.move(task_ids[to_task], task_ids[from_task], "end")
-
-# Main program to start the Tkinter application
+# Run the application
 if __name__ == "__main__":
-    root = tk.Tk()  # Create the root Tkinter window
-    app = ManagementApp(root) # Create the ManagementApp object with the root window
-    root.mainloop()    # Start the Tkinter main event loop
-
+    root = tk.Tk()  # Create the root window
+    app = ManagementApp(root)  # Instantiate the main app
+    root.mainloop()  # Start the Tkinter event loop
